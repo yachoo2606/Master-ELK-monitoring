@@ -5,6 +5,7 @@ x-common-settings: &elasticsearchImage
 
 services:
   setup:
+    container_name: setup
     <<: *elasticsearchImage
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
@@ -75,6 +76,7 @@ services:
       retries: 120
 
   es01:
+    container_name: elasticsearch01
     depends_on:
       setup:
         condition: service_healthy
@@ -122,6 +124,7 @@ services:
       retries: 120
 
   es02:
+    container_name: elasticsearch02
     depends_on:
       - es01
     <<: *elasticsearchImage
@@ -136,6 +139,7 @@ services:
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es01,es03
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - bootstrap.memory_lock=true
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -165,6 +169,7 @@ services:
       retries: 120
 
   es03:
+    container_name: elasticsearch03
     depends_on:
       - es02
     <<: *elasticsearchImage
@@ -179,6 +184,7 @@ services:
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es01,es02
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - bootstrap.memory_lock=true
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -208,6 +214,7 @@ services:
       retries: 120
 
   kibana:
+    container_name: kibana
     depends_on:
       es01:
         condition: service_healthy
@@ -245,6 +252,7 @@ services:
       retries: 120
 
   logstash01:
+    container_name: logstash01
     depends_on:
       es01:
         condition: service_healthy
@@ -269,11 +277,78 @@ services:
     environment:
       - xpack.monitoring.enabled=true
       - xpack.monitoring.collection.enabled=true
+      - xpack.monitoring.elasticsearch.hosts=["https://es01:9200","https://es02:9200","https://es03:9200"]
+      - xpack.monitoring.elasticsearch.username="elastic"
+      - xpack.monitoring.elasticsearch.password=${ELASTIC_PASSWORD}
+      - xpack.monitoring.elasticsearch.ssl.certificate_authority=certs/ca/ca.crt
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - ELASTIC_HOSTS=https://es01:9200
-
+  logstash02:
+    container_name: logstash02
+    depends_on:
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      es03:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    labels:
+      co.elastic.logs/module: logstash
+    user: root
+    networks:
+      masterNetwork:
+        ipv4_address: 172.20.0.13
+    volumes:
+      - certs:/usr/share/logstash/certs
+      - logstashdata02:/usr/share/logstash/data
+      - "./logstash_ingest_data/:/usr/share/logstash/ingest_data/"
+      - "./logstashConfig/pipeline:/usr/share/logstash/pipeline:ro"
+    environment:
+      - xpack.monitoring.enabled=true
+      - xpack.monitoring.collection.enabled=true
+      - xpack.monitoring.elasticsearch.hosts=["https://es01:9200","https://es02:9200","https://es03:9200"]
+      - xpack.monitoring.elasticsearch.username="elastic"
+      - xpack.monitoring.elasticsearch.password=${ELASTIC_PASSWORD}
+      - xpack.monitoring.elasticsearch.ssl.certificate_authority=certs/ca/ca.crt
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+  logstash03:
+    container_name: logstash03
+    depends_on:
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      es03:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    labels:
+      co.elastic.logs/module: logstash
+    user: root
+    networks:
+      masterNetwork:
+        ipv4_address: 172.20.0.14
+    volumes:
+      - certs:/usr/share/logstash/certs
+      - logstashdata03:/usr/share/logstash/data
+      - "./logstash_ingest_data/:/usr/share/logstash/ingest_data/"
+      - "./logstashConfig/pipeline:/usr/share/logstash/pipeline:ro"
+    environment:
+      - xpack.monitoring.enabled=true
+      - xpack.monitoring.collection.enabled=true
+      - xpack.monitoring.elasticsearch.hosts=["https://es01:9200","https://es02:9200","https://es03:9200"]
+      - xpack.monitoring.elasticsearch.username="elastic"
+      - xpack.monitoring.elasticsearch.password=${ELASTIC_PASSWORD}
+      - xpack.monitoring.elasticsearch.ssl.certificate_authority=certs/ca/ca.crt
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
   metricbeat01:
+    container_name: metricbeat01
     depends_on:
       es01:
         condition: service_healthy
@@ -317,6 +392,10 @@ volumes:
   metricbeatdata01:
     driver: local
   logstashdata01:
+    driver: local
+  logstashdata02:
+    driver: local
+  logstashdata03:
     driver: local
 
 networks:
