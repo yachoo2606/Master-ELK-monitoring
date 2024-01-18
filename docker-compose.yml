@@ -253,6 +253,8 @@ services:
 
   logstash01:
     container_name: logstash01
+    ports:
+      - 5000:5000
     depends_on:
       es01:
         condition: service_healthy
@@ -285,6 +287,8 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
   logstash02:
     container_name: logstash02
+    ports:
+      - 5001:5000
     depends_on:
       es01:
         condition: service_healthy
@@ -317,6 +321,8 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
   logstash03:
     container_name: logstash03
+    ports:
+      - 5002:5000
     depends_on:
       es01:
         condition: service_healthy
